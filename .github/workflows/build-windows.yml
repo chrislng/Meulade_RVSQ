@@ -43,14 +43,15 @@ jobs:
     - name: Check if executable was created
       run: |
         if (Test-Path "dist/Meulade_RVSQ.exe") {
-          Write-Host "✅ Executable created successfully!"
+          Write-Host "Executable created successfully!"
           $size = (Get-Item "dist/Meulade_RVSQ.exe").Length / 1MB
-          Write-Host "📁 File size: $([math]::Round($size, 2)) MB"
-        } else {
-          Write-Host "❌ Executable not found!"
+          Write-Host "File size: $([math]::Round($size, 2)) MB"
+        }
+        else {
+          Write-Host "Executable not found!"
           exit 1
         }
-      shell: powershell
+      shell: pwsh
         
     - name: Upload Windows executable
       uses: actions/upload-artifact@v4
