@@ -179,6 +179,11 @@ class AppGUI:
             }
         }
         
+        # Tab order for field navigation
+        self.field_order = ['first_name', 'last_name', 'nam', 'card_seq_number', 
+                           'postal_code', 'cellphone', 'email', 'birth_day', 
+                           'birth_month', 'birth_year']
+        
         # Buttons
         button_width = 100
         button_height = 35
@@ -382,6 +387,24 @@ class AppGUI:
         
         pygame.display.flip()
 
+    def next_field(self):
+        """Navigate to the next field in tab order"""
+        if self.active_field is None:
+            self.active_field = self.field_order[0]
+        else:
+            current_index = self.field_order.index(self.active_field)
+            next_index = (current_index + 1) % len(self.field_order)
+            self.active_field = self.field_order[next_index]
+
+    def previous_field(self):
+        """Navigate to the previous field in tab order"""
+        if self.active_field is None:
+            self.active_field = self.field_order[-1]
+        else:
+            current_index = self.field_order.index(self.active_field)
+            prev_index = (current_index - 1) % len(self.field_order)
+            self.active_field = self.field_order[prev_index]
+
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             # Handle language selector
@@ -420,7 +443,13 @@ class AppGUI:
                 self.stop_search()
         
         elif event.type == pygame.KEYDOWN:
-            if self.active_field:
+            # Handle Tab navigation
+            if event.key == pygame.K_TAB:
+                if event.mod & pygame.KMOD_SHIFT:
+                    self.previous_field()
+                else:
+                    self.next_field()
+            elif self.active_field:
                 if event.key == pygame.K_BACKSPACE:
                     self.fields[self.active_field]['text'] = self.fields[self.active_field]['text'][:-1]
                 else:
