@@ -65,6 +65,12 @@ class AppGUI:
 
         # Autobook appointement
         self.autobook = True
+        
+        # Testing mode for slow step-by-step execution
+        self.testing_mode = True  # Default to testing mode for easier debugging
+        
+        # Initialize browser testing mode
+        browser.set_testing_mode(self.testing_mode)
 
         # Initialize translations first
         self.translations = translations
@@ -198,6 +204,18 @@ class AppGUI:
         self.stop_button = pygame.Rect(buttons_start_x + button_width + button_spacing, 
                                      buttons_y, button_width, button_height)
         
+        # Checkboxes below buttons - positioned horizontally
+        checkbox_size = 20
+        checkbox_y = buttons_y + button_height + 20
+        checkbox_spacing = 150  # Reduced horizontal spacing between checkboxes
+        
+        # Center both checkboxes horizontally
+        total_checkbox_width = (checkbox_size * 2) + checkbox_spacing
+        checkbox_start_x = (self.width - total_checkbox_width) // 2
+        
+        self.autobook_checkbox = pygame.Rect(checkbox_start_x, checkbox_y, checkbox_size, checkbox_size)
+        self.testing_mode_checkbox = pygame.Rect(checkbox_start_x + checkbox_size + checkbox_spacing, checkbox_y, checkbox_size, checkbox_size)
+        
         # Cursor blink timer
         self.cursor_visible = True
         self.cursor_timer = 0
@@ -249,6 +267,28 @@ class AppGUI:
             # Fallback to arial unicode ms if specific font fails
             fallback_font = pygame.font.SysFont('arial unicode ms', font_size)
             return fallback_font.render(text, True, color)
+    
+    def draw_checkbox(self, rect, checked, label):
+        """Draw a checkbox with label"""
+        # Draw checkbox background
+        pygame.draw.rect(self.screen, self.WHITE, rect)
+        pygame.draw.rect(self.screen, self.INPUT_BORDER, rect, 2)
+        
+        # Draw checkmark if checked
+        if checked:
+            # Draw a green checkmark
+            checkmark_points = [
+                (rect.x + 4, rect.y + rect.height // 2),
+                (rect.x + rect.width // 2 - 2, rect.y + rect.height - 6),
+                (rect.x + rect.width - 4, rect.y + 4)
+            ]
+            pygame.draw.lines(self.screen, self.GREEN, False, checkmark_points, 3)
+        
+        # Draw label
+        label_surface = self.render_text(label, self.BLACK)
+        label_x = rect.right + 10
+        label_y = rect.y + (rect.height - label_surface.get_height()) // 2
+        self.screen.blit(label_surface, (label_x, label_y))
 
     def draw(self):
         # Fill background
@@ -334,11 +374,16 @@ class AppGUI:
             text_rect = text_surface.get_rect(center=button.center)
             self.screen.blit(text_surface, text_rect)
         
-        # Add notification text under buttons with more space - split into two lines
+        # Draw checkboxes
+        self.draw_checkbox(self.autobook_checkbox, self.autobook, self.get_text('autobook'))
+        self.draw_checkbox(self.testing_mode_checkbox, self.testing_mode, self.get_text('testing_mode'))
+        
+        # Add notification text under checkboxes with more space - split into two lines
+        notification_y = self.testing_mode_checkbox.bottom + 20
         notification_text1 = self.render_text(self.get_text('sound_notification_1'), self.BLACK)
         notification_text2 = self.render_text(self.get_text('sound_notification_2'), self.BLACK)
-        notification_rect1 = notification_text1.get_rect(centerx=self.width//2, y=button_y + 60)
-        notification_rect2 = notification_text2.get_rect(centerx=self.width//2, y=button_y + 80)
+        notification_rect1 = notification_text1.get_rect(centerx=self.width//2, y=notification_y)
+        notification_rect2 = notification_text2.get_rect(centerx=self.width//2, y=notification_y + 20)
         self.screen.blit(notification_text1, notification_rect1)
         self.screen.blit(notification_text2, notification_rect2)
         
@@ -441,6 +486,16 @@ class AppGUI:
                 self.start_search()
             elif self.stop_button.collidepoint(event.pos) and self.search_running.get():
                 self.stop_search()
+            
+            # Handle checkbox clicks
+            elif self.autobook_checkbox.collidepoint(event.pos):
+                self.autobook = not self.autobook
+                log_message(f"[GUI] Autobook toggled to: {self.autobook}")
+            elif self.testing_mode_checkbox.collidepoint(event.pos):
+                self.testing_mode = not self.testing_mode
+                # Update browser testing mode
+                browser.set_testing_mode(self.testing_mode)
+                log_message(f"[GUI] Testing mode toggled to: {self.testing_mode}")
         
         elif event.type == pygame.KEYDOWN:
             # Handle Tab navigation
