@@ -34,6 +34,12 @@ jobs:
         Write-Host ""
         Write-Host "Python files:"
         Get-ChildItem -Filter "*.py" | ForEach-Object { Write-Host "  $($_.Name)" }
+        Write-Host ""
+        Write-Host "Checking for required files:"
+        if (Test-Path "meulade.py") { Write-Host "  meulade.py: FOUND" } else { Write-Host "  meulade.py: MISSING" }
+        if (Test-Path "config.json") { Write-Host "  config.json: FOUND" } else { Write-Host "  config.json: MISSING (OK for old commits)" }
+        if (Test-Path "images") { Write-Host "  images/: FOUND" } else { Write-Host "  images/: MISSING" }
+        if (Test-Path "requirements.txt") { Write-Host "  requirements.txt: FOUND" } else { Write-Host "  requirements.txt: MISSING" }
       shell: pwsh
         
     - name: Install dependencies
