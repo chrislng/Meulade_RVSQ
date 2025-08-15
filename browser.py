@@ -79,7 +79,7 @@ def run_automation_rvsq(config, search_running):
                 if playwright_paths:
                     os.environ['PLAYWRIGHT_BROWSERS_PATH'] = playwright_paths['browser_path']
                 
-                browser = playwright.chromium.launch(**launch_args)
+                browser = playwright.firefox.launch(**launch_args)
                 
                 log_message("[RVSQ] Creating new context...")
                 context = browser.new_context(
@@ -252,7 +252,7 @@ def run_automation_bonjoursante(config, search_running, autobook):
                 if playwright_paths:
                     os.environ['PLAYWRIGHT_BROWSERS_PATH'] = playwright_paths['browser_path']
                 
-                browser = playwright.chromium.launch(**launch_args)
+                browser = playwright.firefox.launch(**launch_args)
                 
                 log_message("[BonjourSante] Creating new context...")
                 context = browser.new_context(
@@ -315,7 +315,21 @@ def run_automation_bonjoursante(config, search_running, autobook):
                             frameLocator.locator('input#cellPhone').fill(format_phone_number(personal_info['cellphone']))
                             frameLocator.locator('input#email').fill((personal_info['email']))
                             frameLocator.locator('select#reasons').select_option(value='28') # Reason : Autres
-                            frameLocator.locator('#confirmation-checkbox-input').check()
+                            # Try multiple approaches to click the checkbox
+                            try:
+                                # First try clicking the Material Design checkbox container
+                                frameLocator.locator('div.mdc-checkbox').click()
+                            except:
+                                try:
+                                    # If that fails, try clicking the label
+                                    frameLocator.locator('label[for="confirmation-checkbox-input"]').click()
+                                except:
+                                    try:
+                                        # If that fails, try forcing the check on the input
+                                        frameLocator.locator('#confirmation-checkbox-input').check(force=True)
+                                    except:
+                                        # Last resort: use JavaScript to click
+                                        frameLocator.locator('#confirmation-checkbox-input').evaluate("element => element.click()")
                             frameLocator.locator('#confirm').click()
                             frameLocator.locator('button[data-test="registration-dialog-submit-btn"]').click()
                             frameLocator.locator('lib-alert').wait_for(state='visible')

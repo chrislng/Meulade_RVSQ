@@ -468,9 +468,10 @@ class AppGUI:
         self.search_thread_1 = threading.Thread(target=self.run_search, args=('bonjoursante', self.search_running, self.autobook))
         self.search_thread_1.daemon = True
         self.search_thread_1.start()
-        self.search_thread_2 = threading.Thread(target=self.run_search, args=('rvsq', self.search_running, False))
-        self.search_thread_2.daemon = True
-        self.search_thread_2.start()
+        # UNCOMMENT TO REENABLE RVSQ
+        # self.search_thread_2 = threading.Thread(target=self.run_search, args=('rvsq', self.search_running, False))
+        # self.search_thread_2.daemon = True
+        # self.search_thread_2.start()
     def stop_search(self):
         self.search_running.set(False)
         self.status = "Stopping..."
