@@ -1,6 +1,5 @@
 import pygame
 import threading
-import webbrowser
 from languages import translations, languages
 import browser
 import sys
@@ -11,8 +10,8 @@ from logger import default_message_queue, log_message
 class AppGUI:
     def __init__(self):
         pygame.init()
-        self.width = 500  # More compact width
-        self.height = 1000  # Increased from 600 to 700 to fit everything
+        self.width = 600
+        self.height = 800
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("RVSQ Appointment Finder")
         
@@ -66,6 +65,12 @@ class AppGUI:
 
         # Autobook appointement
         self.autobook = True
+        
+        # Testing mode for slow step-by-step execution
+        self.testing_mode = True  # Default to testing mode for easier debugging
+        
+        # Initialize browser testing mode
+        browser.set_testing_mode(self.testing_mode)
 
         # Initialize translations first
         self.translations = translations
@@ -75,9 +80,9 @@ class AppGUI:
         self.current_language = 'Français'
         self.language_dropdown_open = False
         
-        # Language button - wider to accommodate all languages and moved to top-right
+        # Language button
         button_width = 100
-        self.language_button = pygame.Rect(self.width - button_width - 20, 15, button_width, 30)
+        self.language_button = pygame.Rect(self.width - button_width - 50, 115, button_width, 30)
         
         # Dropdown positioned to the left of the button
         dropdown_width = 120
@@ -88,11 +93,10 @@ class AppGUI:
             len(self.languages) * 25
         )
         
-        # Layout calculations - adjust spacing for logo
-        self.field_width = 400
+        self.field_width = 500
         self.field_height = 40
-        start_y = 250  # Position for first input field
-        spacing = 60  # Spacing between fields
+        start_y = 180
+        spacing = 65
         self.center_x = (self.width - self.field_width) // 2
         
         # Load logo
@@ -106,10 +110,13 @@ class AppGUI:
                 base_path = os.path.dirname(os.path.abspath(__file__))
             
             logo_path = os.path.join(base_path, 'images', 'logo_small.png')
-            self.logo = pygame.image.load(logo_path)
+            original_logo = pygame.image.load(logo_path)
+            original_size = original_logo.get_size()
+            new_size = (int(original_size[0] * 0.4), int(original_size[1] * 0.4))
+            self.logo = pygame.transform.scale(original_logo, new_size)
             self.logo_rect = self.logo.get_rect()
             self.logo_rect.centerx = self.width // 2
-            self.logo_rect.y = 70  # Moved down to make room for title
+            self.logo_rect.y = 65
         except Exception as e:
             self.logo = None
             print(f"Warning: Could not load logo image: {str(e)}")
@@ -178,6 +185,11 @@ class AppGUI:
             }
         }
         
+        # Tab order for field navigation
+        self.field_order = ['first_name', 'last_name', 'nam', 'card_seq_number', 
+                           'postal_code', 'cellphone', 'email', 'birth_day', 
+                           'birth_month', 'birth_year']
+        
         # Buttons
         button_width = 100
         button_height = 35
@@ -192,9 +204,17 @@ class AppGUI:
         self.stop_button = pygame.Rect(buttons_start_x + button_width + button_spacing, 
                                      buttons_y, button_width, button_height)
         
-        # Log area
-        log_y = buttons_y + button_height + 20
-        self.log_rect = pygame.Rect(self.center_x, log_y, self.field_width, 150)
+        # Checkboxes below buttons - positioned horizontally
+        checkbox_size = 20
+        checkbox_y = buttons_y + button_height + 20
+        checkbox_spacing = 150  # Reduced horizontal spacing between checkboxes
+        
+        # Center both checkboxes horizontally
+        total_checkbox_width = (checkbox_size * 2) + checkbox_spacing
+        checkbox_start_x = (self.width - total_checkbox_width) // 2
+        
+        self.autobook_checkbox = pygame.Rect(checkbox_start_x, checkbox_y, checkbox_size, checkbox_size)
+        self.testing_mode_checkbox = pygame.Rect(checkbox_start_x + checkbox_size + checkbox_spacing, checkbox_y, checkbox_size, checkbox_size)
         
         # Cursor blink timer
         self.cursor_visible = True
@@ -210,14 +230,6 @@ class AppGUI:
         self.search_running = SharedBoolean(False)
         # Load saved config
         self.load_saved_config()
-        
-        # Add URL rect for click detection
-        self.url = "www.meulade.com"
-        self.url_rect = None  # Will be set in draw method
-        
-        # Add URL color and hover color
-        self.URL_COLOR = (63, 131, 248)  # Same as self.BLUE
-        self.URL_HOVER_COLOR = (29, 78, 216)  # Darker blue for hover
         
 
     def load_saved_config(self):
@@ -255,6 +267,28 @@ class AppGUI:
             # Fallback to arial unicode ms if specific font fails
             fallback_font = pygame.font.SysFont('arial unicode ms', font_size)
             return fallback_font.render(text, True, color)
+    
+    def draw_checkbox(self, rect, checked, label):
+        """Draw a checkbox with label"""
+        # Draw checkbox background
+        pygame.draw.rect(self.screen, self.WHITE, rect)
+        pygame.draw.rect(self.screen, self.INPUT_BORDER, rect, 2)
+        
+        # Draw checkmark if checked
+        if checked:
+            # Draw a green checkmark
+            checkmark_points = [
+                (rect.x + 4, rect.y + rect.height // 2),
+                (rect.x + rect.width // 2 - 2, rect.y + rect.height - 6),
+                (rect.x + rect.width - 4, rect.y + 4)
+            ]
+            pygame.draw.lines(self.screen, self.GREEN, False, checkmark_points, 3)
+        
+        # Draw label
+        label_surface = self.render_text(label, self.BLACK)
+        label_x = rect.right + 10
+        label_y = rect.y + (rect.height - label_surface.get_height()) // 2
+        self.screen.blit(label_surface, (label_x, label_y))
 
     def draw(self):
         # Fill background
@@ -273,7 +307,7 @@ class AppGUI:
         for field_name, field in self.fields.items():
             # Draw label
             label = self.render_text(field['label'], self.BLACK)
-            self.screen.blit(label, (field['rect'].x, field['rect'].y - 22))
+            self.screen.blit(label, (field['rect'].x, field['rect'].y - 20))
             
             # Draw input box shadow
             shadow_rect = field['rect'].inflate(2, 2)
@@ -316,7 +350,7 @@ class AppGUI:
                                2)  # Slightly thicker cursor
         
         # Draw buttons with updated styling
-        button_y = self.fields['birth_year']['rect'].bottom + 30
+        button_y = self.fields['birth_year']['rect'].bottom + 20
         for button, text in [(self.start_button, self.get_text('start')), 
                            (self.stop_button, self.get_text('stop'))]:
             is_start = button == self.start_button
@@ -340,55 +374,18 @@ class AppGUI:
             text_rect = text_surface.get_rect(center=button.center)
             self.screen.blit(text_surface, text_rect)
         
-        # Add notification text under buttons with more space - split into two lines
+        # Draw checkboxes
+        self.draw_checkbox(self.autobook_checkbox, self.autobook, self.get_text('autobook'))
+        self.draw_checkbox(self.testing_mode_checkbox, self.testing_mode, self.get_text('testing_mode'))
+        
+        # Add notification text under checkboxes with more space - split into two lines
+        notification_y = self.testing_mode_checkbox.bottom + 20
         notification_text1 = self.render_text(self.get_text('sound_notification_1'), self.BLACK)
         notification_text2 = self.render_text(self.get_text('sound_notification_2'), self.BLACK)
-        notification_rect1 = notification_text1.get_rect(centerx=self.width//2, y=button_y + 50)
-        notification_rect2 = notification_text2.get_rect(centerx=self.width//2, y=button_y + 70)
+        notification_rect1 = notification_text1.get_rect(centerx=self.width//2, y=notification_y)
+        notification_rect2 = notification_text2.get_rect(centerx=self.width//2, y=notification_y + 20)
         self.screen.blit(notification_text1, notification_rect1)
         self.screen.blit(notification_text2, notification_rect2)
-        
-        # Draw log area with more space below notification (adjusted for two lines)
-        log_y = notification_rect2.bottom + 20  # Changed from notification_rect to notification_rect2
-        self.log_rect = pygame.Rect(self.center_x, log_y, self.field_width, 80)
-        pygame.draw.rect(self.screen, self.LIGHT_BLUE, self.log_rect, border_radius=6)
-        pygame.draw.rect(self.screen, self.GRAY, self.log_rect, 1, border_radius=6)
-        
-        # Draw log messages with subtle alternating backgrounds
-        for i, message in enumerate(default_message_queue[-5:]):  # Show only last 8 messages
-            y_pos = self.log_rect.y + 5 + i*20
-            if i % 2 == 0:
-                row_rect = pygame.Rect(self.log_rect.x + 2, y_pos, self.log_rect.width - 4, 20)
-                pygame.draw.rect(self.screen, self.WHITE, row_rect)
-            log_text = self.render_text(message, self.BLACK)
-            self.screen.blit(log_text, (self.log_rect.x + 10, y_pos))
-        
-        # Draw footer with more space
-        footer_y = self.height - 40  # Give more space from bottom
-        url_text = self.render_text(self.url, self.URL_COLOR if not self.url_rect or not self.url_rect.collidepoint(pygame.mouse.get_pos()) else self.URL_HOVER_COLOR)
-        footer_suffix = self.render_text(" - " + self.get_text('footer').split(' - ')[1], self.BLACK)
-        
-        total_width = url_text.get_width() + footer_suffix.get_width()
-        start_x = (self.width - total_width) // 2
-        
-        # Draw URL with underline
-        url_y = footer_y
-        self.screen.blit(url_text, (start_x, url_y))
-        self.url_rect = pygame.Rect(start_x, url_y, url_text.get_width(), url_text.get_height())
-        
-        # Draw underline and footer text
-        if self.url_rect.collidepoint(pygame.mouse.get_pos()):
-            pygame.draw.line(self.screen, self.URL_HOVER_COLOR,
-                           (self.url_rect.left, self.url_rect.bottom),
-                           (self.url_rect.right, self.url_rect.bottom),
-                           2)
-        else:
-            pygame.draw.line(self.screen, self.URL_COLOR,
-                           (self.url_rect.left, self.url_rect.bottom),
-                           (self.url_rect.right, self.url_rect.bottom),
-                           1)
-        
-        self.screen.blit(footer_suffix, (start_x + url_text.get_width(), url_y))
         
         # Draw language selector and dropdown LAST to appear on top
         # Language button
@@ -435,12 +432,26 @@ class AppGUI:
         
         pygame.display.flip()
 
+    def next_field(self):
+        """Navigate to the next field in tab order"""
+        if self.active_field is None:
+            self.active_field = self.field_order[0]
+        else:
+            current_index = self.field_order.index(self.active_field)
+            next_index = (current_index + 1) % len(self.field_order)
+            self.active_field = self.field_order[next_index]
+
+    def previous_field(self):
+        """Navigate to the previous field in tab order"""
+        if self.active_field is None:
+            self.active_field = self.field_order[-1]
+        else:
+            current_index = self.field_order.index(self.active_field)
+            prev_index = (current_index - 1) % len(self.field_order)
+            self.active_field = self.field_order[prev_index]
+
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Handle URL click
-            if self.url_rect and self.url_rect.collidepoint(event.pos):
-                webbrowser.open(f"https://{self.url}")
-            
             # Handle language selector
             if self.language_button.collidepoint(event.pos):
                 self.language_dropdown_open = not self.language_dropdown_open
@@ -475,9 +486,25 @@ class AppGUI:
                 self.start_search()
             elif self.stop_button.collidepoint(event.pos) and self.search_running.get():
                 self.stop_search()
+            
+            # Handle checkbox clicks
+            elif self.autobook_checkbox.collidepoint(event.pos):
+                self.autobook = not self.autobook
+                log_message(f"[GUI] Autobook toggled to: {self.autobook}")
+            elif self.testing_mode_checkbox.collidepoint(event.pos):
+                self.testing_mode = not self.testing_mode
+                # Update browser testing mode
+                browser.set_testing_mode(self.testing_mode)
+                log_message(f"[GUI] Testing mode toggled to: {self.testing_mode}")
         
         elif event.type == pygame.KEYDOWN:
-            if self.active_field:
+            # Handle Tab navigation
+            if event.key == pygame.K_TAB:
+                if event.mod & pygame.KMOD_SHIFT:
+                    self.previous_field()
+                else:
+                    self.next_field()
+            elif self.active_field:
                 if event.key == pygame.K_BACKSPACE:
                     self.fields[self.active_field]['text'] = self.fields[self.active_field]['text'][:-1]
                 else:
@@ -496,9 +523,10 @@ class AppGUI:
         self.search_thread_1 = threading.Thread(target=self.run_search, args=('bonjoursante', self.search_running, self.autobook))
         self.search_thread_1.daemon = True
         self.search_thread_1.start()
-        self.search_thread_2 = threading.Thread(target=self.run_search, args=('rvsq', self.search_running, False))
-        self.search_thread_2.daemon = True
-        self.search_thread_2.start()
+        # UNCOMMENT TO REENABLE RVSQ
+        # self.search_thread_2 = threading.Thread(target=self.run_search, args=('rvsq', self.search_running, False))
+        # self.search_thread_2.daemon = True
+        # self.search_thread_2.start()
     def stop_search(self):
         self.search_running.set(False)
         self.status = "Stopping..."
