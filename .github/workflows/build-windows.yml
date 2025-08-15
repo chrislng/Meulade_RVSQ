@@ -27,6 +27,15 @@ jobs:
       with:
         python-version: '3.11'
         
+    - name: Show project structure
+      run: |
+        Write-Host "Project files in current directory:"
+        Get-ChildItem -Name | ForEach-Object { Write-Host "  $_" }
+        Write-Host ""
+        Write-Host "Python files:"
+        Get-ChildItem -Filter "*.py" | ForEach-Object { Write-Host "  $($_.Name)" }
+      shell: pwsh
+        
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
