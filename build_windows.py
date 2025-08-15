@@ -95,10 +95,12 @@ def build_windows_exe():
         '--optimize=2',
     ])
     
-    # Add icon if available
-    if os.path.exists('images/logo_medium.png'):
-        command.append('--icon=images/logo_medium.png')
-        print("Using icon: images/logo_medium.png")
+    # Add icon if ICO format is available
+    if os.path.exists('images/logo_small.ico'):
+        command.append('--icon=images/logo_small.ico')
+        print("Using icon: images/logo_small.ico")
+    else:
+        print("No ICO icon found - continuing without icon (PNG format not supported on Windows)")
     
     try:
         print("\nRunning PyInstaller...")
