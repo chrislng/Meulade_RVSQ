@@ -1,6 +1,5 @@
 import pygame
 import threading
-import webbrowser
 from languages import translations, languages
 import browser
 import sys
@@ -11,8 +10,8 @@ from logger import default_message_queue, log_message
 class AppGUI:
     def __init__(self):
         pygame.init()
-        self.width = 500  # More compact width
-        self.height = 1000  # Increased from 600 to 700 to fit everything
+        self.width = 600
+        self.height = 800
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("RVSQ Appointment Finder")
         
@@ -75,9 +74,9 @@ class AppGUI:
         self.current_language = 'Français'
         self.language_dropdown_open = False
         
-        # Language button - wider to accommodate all languages and moved to top-right
+        # Language button
         button_width = 100
-        self.language_button = pygame.Rect(self.width - button_width - 20, 15, button_width, 30)
+        self.language_button = pygame.Rect(self.width - button_width - 50, 115, button_width, 30)
         
         # Dropdown positioned to the left of the button
         dropdown_width = 120
@@ -88,11 +87,10 @@ class AppGUI:
             len(self.languages) * 25
         )
         
-        # Layout calculations - adjust spacing for logo
-        self.field_width = 400
+        self.field_width = 500
         self.field_height = 40
-        start_y = 250  # Position for first input field
-        spacing = 60  # Spacing between fields
+        start_y = 180
+        spacing = 65
         self.center_x = (self.width - self.field_width) // 2
         
         # Load logo
@@ -106,10 +104,13 @@ class AppGUI:
                 base_path = os.path.dirname(os.path.abspath(__file__))
             
             logo_path = os.path.join(base_path, 'images', 'logo_small.png')
-            self.logo = pygame.image.load(logo_path)
+            original_logo = pygame.image.load(logo_path)
+            original_size = original_logo.get_size()
+            new_size = (int(original_size[0] * 0.4), int(original_size[1] * 0.4))
+            self.logo = pygame.transform.scale(original_logo, new_size)
             self.logo_rect = self.logo.get_rect()
             self.logo_rect.centerx = self.width // 2
-            self.logo_rect.y = 70  # Moved down to make room for title
+            self.logo_rect.y = 65
         except Exception as e:
             self.logo = None
             print(f"Warning: Could not load logo image: {str(e)}")
@@ -192,10 +193,6 @@ class AppGUI:
         self.stop_button = pygame.Rect(buttons_start_x + button_width + button_spacing, 
                                      buttons_y, button_width, button_height)
         
-        # Log area
-        log_y = buttons_y + button_height + 20
-        self.log_rect = pygame.Rect(self.center_x, log_y, self.field_width, 150)
-        
         # Cursor blink timer
         self.cursor_visible = True
         self.cursor_timer = 0
@@ -210,14 +207,6 @@ class AppGUI:
         self.search_running = SharedBoolean(False)
         # Load saved config
         self.load_saved_config()
-        
-        # Add URL rect for click detection
-        self.url = "www.meulade.com"
-        self.url_rect = None  # Will be set in draw method
-        
-        # Add URL color and hover color
-        self.URL_COLOR = (63, 131, 248)  # Same as self.BLUE
-        self.URL_HOVER_COLOR = (29, 78, 216)  # Darker blue for hover
         
 
     def load_saved_config(self):
@@ -273,7 +262,7 @@ class AppGUI:
         for field_name, field in self.fields.items():
             # Draw label
             label = self.render_text(field['label'], self.BLACK)
-            self.screen.blit(label, (field['rect'].x, field['rect'].y - 22))
+            self.screen.blit(label, (field['rect'].x, field['rect'].y - 20))
             
             # Draw input box shadow
             shadow_rect = field['rect'].inflate(2, 2)
@@ -316,7 +305,7 @@ class AppGUI:
                                2)  # Slightly thicker cursor
         
         # Draw buttons with updated styling
-        button_y = self.fields['birth_year']['rect'].bottom + 30
+        button_y = self.fields['birth_year']['rect'].bottom + 20
         for button, text in [(self.start_button, self.get_text('start')), 
                            (self.stop_button, self.get_text('stop'))]:
             is_start = button == self.start_button
@@ -343,52 +332,10 @@ class AppGUI:
         # Add notification text under buttons with more space - split into two lines
         notification_text1 = self.render_text(self.get_text('sound_notification_1'), self.BLACK)
         notification_text2 = self.render_text(self.get_text('sound_notification_2'), self.BLACK)
-        notification_rect1 = notification_text1.get_rect(centerx=self.width//2, y=button_y + 50)
-        notification_rect2 = notification_text2.get_rect(centerx=self.width//2, y=button_y + 70)
+        notification_rect1 = notification_text1.get_rect(centerx=self.width//2, y=button_y + 60)
+        notification_rect2 = notification_text2.get_rect(centerx=self.width//2, y=button_y + 80)
         self.screen.blit(notification_text1, notification_rect1)
         self.screen.blit(notification_text2, notification_rect2)
-        
-        # Draw log area with more space below notification (adjusted for two lines)
-        log_y = notification_rect2.bottom + 20  # Changed from notification_rect to notification_rect2
-        self.log_rect = pygame.Rect(self.center_x, log_y, self.field_width, 80)
-        pygame.draw.rect(self.screen, self.LIGHT_BLUE, self.log_rect, border_radius=6)
-        pygame.draw.rect(self.screen, self.GRAY, self.log_rect, 1, border_radius=6)
-        
-        # Draw log messages with subtle alternating backgrounds
-        for i, message in enumerate(default_message_queue[-5:]):  # Show only last 8 messages
-            y_pos = self.log_rect.y + 5 + i*20
-            if i % 2 == 0:
-                row_rect = pygame.Rect(self.log_rect.x + 2, y_pos, self.log_rect.width - 4, 20)
-                pygame.draw.rect(self.screen, self.WHITE, row_rect)
-            log_text = self.render_text(message, self.BLACK)
-            self.screen.blit(log_text, (self.log_rect.x + 10, y_pos))
-        
-        # Draw footer with more space
-        footer_y = self.height - 40  # Give more space from bottom
-        url_text = self.render_text(self.url, self.URL_COLOR if not self.url_rect or not self.url_rect.collidepoint(pygame.mouse.get_pos()) else self.URL_HOVER_COLOR)
-        footer_suffix = self.render_text(" - " + self.get_text('footer').split(' - ')[1], self.BLACK)
-        
-        total_width = url_text.get_width() + footer_suffix.get_width()
-        start_x = (self.width - total_width) // 2
-        
-        # Draw URL with underline
-        url_y = footer_y
-        self.screen.blit(url_text, (start_x, url_y))
-        self.url_rect = pygame.Rect(start_x, url_y, url_text.get_width(), url_text.get_height())
-        
-        # Draw underline and footer text
-        if self.url_rect.collidepoint(pygame.mouse.get_pos()):
-            pygame.draw.line(self.screen, self.URL_HOVER_COLOR,
-                           (self.url_rect.left, self.url_rect.bottom),
-                           (self.url_rect.right, self.url_rect.bottom),
-                           2)
-        else:
-            pygame.draw.line(self.screen, self.URL_COLOR,
-                           (self.url_rect.left, self.url_rect.bottom),
-                           (self.url_rect.right, self.url_rect.bottom),
-                           1)
-        
-        self.screen.blit(footer_suffix, (start_x + url_text.get_width(), url_y))
         
         # Draw language selector and dropdown LAST to appear on top
         # Language button
@@ -437,10 +384,6 @@ class AppGUI:
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Handle URL click
-            if self.url_rect and self.url_rect.collidepoint(event.pos):
-                webbrowser.open(f"https://{self.url}")
-            
             # Handle language selector
             if self.language_button.collidepoint(event.pos):
                 self.language_dropdown_open = not self.language_dropdown_open
