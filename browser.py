@@ -2,9 +2,36 @@ from playwright.sync_api import sync_playwright
 import random
 import os
 from datetime import datetime
-import winsound
 import sys
+import platform
+import subprocess
 from logger import log_message
+
+# Cross-platform audio support
+def play_beep(frequency=1000, duration=500):
+    """Play a beep sound across different platforms"""
+    try:
+        system = platform.system()
+        if system == "Windows":
+            import winsound
+            winsound.Beep(frequency, duration)
+        elif system == "Darwin":  # macOS
+            # Use afplay with a generated tone or system beep
+            subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
+        elif system == "Linux":
+            # Use paplay or aplay if available
+            try:
+                subprocess.run(["paplay", "/usr/share/sounds/alsa/Front_Left.wav"], check=False)
+            except FileNotFoundError:
+                try:
+                    subprocess.run(["aplay", "/usr/share/sounds/alsa/Front_Left.wav"], check=False)
+                except FileNotFoundError:
+                    print("\a")  # Fallback to terminal bell
+        else:
+            print("\a")  # Terminal bell fallback
+    except Exception as e:
+        print(f"Could not play beep: {e}")
+        print("\a")  # Terminal bell fallback
 
 def get_playwright_path():
     """Get the correct path for Playwright resources when bundled"""
@@ -17,12 +44,12 @@ def get_playwright_path():
 def slot_found(page):
     log_message("🎉 SLOT FOUND! 🎉")
     print("🎉 SLOT FOUND! 🎉")
-    winsound.Beep(1000, 500)
-    winsound.Beep(2000, 500)
-    winsound.Beep(1000, 500)
-    winsound.Beep(2000, 500)
-    winsound.Beep(1000, 500)
-    winsound.Beep(2000, 500)
+    play_beep(1000, 500)
+    play_beep(2000, 500)
+    play_beep(1000, 500)
+    play_beep(2000, 500)
+    play_beep(1000, 500)
+    play_beep(2000, 500)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     screenshot_path = os.path.join("screenshots", f"slot_found_{timestamp}.png")
     page.screenshot(path=screenshot_path, full_page=True)
